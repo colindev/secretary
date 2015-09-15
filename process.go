@@ -36,7 +36,7 @@ func (p *Process) Recieve(v url.Values) (err error) {
 	cmd = v.Get("command")
 	// TODO: 檢查命令
 
-	t, err = regexp.Compile(v.Get("datetime"))
+	t, err = parseDatetime(v.Get("datetime"))
 
 	if err != nil {
 		return
@@ -65,5 +65,11 @@ func (p *Process) Recieve(v url.Values) (err error) {
 func NewProcess() (p *Process) {
 	p = &Process{}
 	p.Commands = make(map[string]*Command)
+	return
+}
+
+func parseDatetime(s string) (r *regexp.Regexp, e error) {
+	r, e = regexp.Compile(s)
+
 	return
 }
