@@ -25,9 +25,7 @@ func getRegister(p *Process) func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		err := p.Recieve(req.PostForm)
-
-		if err != nil {
+		if err := p.Recieve(req.PostForm); err != nil {
 			rw.Write([]byte(err.Error()))
 			return
 		}
