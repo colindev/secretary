@@ -9,17 +9,20 @@ type Worker struct {
 	interval int64
 }
 
-func (w Worker) Run(i int64) {
+func (w *Worker) Run(p *Process) {
 
-	w.interval = i
-
-	ct := time.NewTicker(time.Second * time.Duration(i)).C
+	ct := time.NewTicker(time.Second * time.Duration(w.interval)).C
 
 	go func() {
 		for t := range ct {
-			fmt.Println("time.Ticker.C: ", processes.Commands, t)
+			fmt.Println("time.Ticker.C:", t)
+			for _, cmd := range p.Commands {
+				fmt.Printf("%+v\n", cmd)
+			}
 		}
 	}()
 }
 
-var worker = Worker(Worker{})
+func NewWork(i int64) *Worker {
+	return &Worker{interval: i}
+}

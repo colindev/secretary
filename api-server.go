@@ -4,27 +4,10 @@ import (
 	"net/http"
 )
 
-func register(rw http.ResponseWriter, req *http.Request) {
-	// TODO: err to json {"error": "xxxx"}
-	if err := req.ParseForm(); err != nil {
-		rw.Write([]byte("error"))
-		return
-	}
-
-	err := processes.Recieve(req.PostForm)
-
-	if err != nil {
-		rw.Write([]byte(err.Error()))
-		return
-	}
-
-	rw.Write([]byte("ok"))
-}
-
-func ListenAndServe(addr string) <-chan error {
+func ListenAndServe(addr string, p *Process) <-chan error {
 
 	err := make(chan error)
-	http.HandleFunc("/api/register", register)
+	http.HandleFunc("/api/register", getRegister(p))
 
 	go func() {
 		err <- http.ListenAndServe(addr, nil)
@@ -32,4 +15,23 @@ func ListenAndServe(addr string) <-chan error {
 
 	// Process, http fatal
 	return err
+}
+
+func getRegister(p *Process) func(http.ResponseWriter, *http.Request) {
+	return func(rw http.ResponseWriter, req *http.Request) {
+		// TODO: err to json {"error": "xxxx"}
+		if err := req.ParseForm(); err != nil {
+			rw.Write([]byte("error"))
+			return
+		}
+
+		err := p.Recieve(req.PostForm)
+
+		if err != nil {
+			rw.Write([]byte(err.Error()))
+			return
+		}
+
+		rw.Write([]byte("ok"))
+	}
 }

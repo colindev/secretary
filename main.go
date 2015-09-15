@@ -13,9 +13,12 @@ func main() {
 
 	flag.Parse()
 
-	worker.Run(*interval)
+	worker := NewWork(*interval)
+	process := NewProcess()
 
-	ce := ListenAndServe(*addr)
+	worker.Run(process)
+
+	ce := ListenAndServe(*addr, process)
 
 	for {
 		select {
