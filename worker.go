@@ -15,9 +15,11 @@ func (w *Worker) Run(p *Process) {
 
 	go func() {
 		for t := range ct {
-			fmt.Println("time.Ticker.C:", t)
+			time_string := t.Format(time.RFC3339)
+			fmt.Println("time.Ticker.C to RFC3339:", time_string)
 			for _, cmd := range p.Commands {
 				fmt.Printf("%+v\n", cmd)
+				fmt.Printf("%+v\n", cmd.Try(time_string))
 			}
 		}
 	}()
