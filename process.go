@@ -83,6 +83,18 @@ func (p *Process) Each(f func(*Command, string) error) {
 	}
 }
 
+func (p *Process) Dump() string {
+	s := ""
+
+	p.Each(func(c *Command, id string) (err error) {
+		s = s + c.Raw + "\n"
+
+		return
+	})
+
+	return s
+}
+
 func (p *Process) Backup(file string) (err error) {
 	f, err := os.Create(file)
 	defer f.Close()
@@ -91,11 +103,7 @@ func (p *Process) Backup(file string) (err error) {
 		return
 	}
 
-	p.Each(func(c *Command, id string) (err error) {
-		_, err = f.WriteString(c.Raw + "\n")
-
-		return
-	})
+	_, err = f.WriteString(p.Dump())
 
 	f.Sync()
 
