@@ -19,14 +19,13 @@ func (w *Worker) Run(p *Process) {
 	go func() {
 		for t := range ct {
 			time_string := t.Format(time.RFC3339)
-			fmt.Println("time.Ticker.C to RFC3339:", time_string)
 			p.Each(func(cmd *Command, id string) error {
 				if cmd.Try(time_string) {
-					go func(script string) {
+					go func(script string, t string) {
 						c := exec.Command("sh", "-c", script)
 						out, err := c.Output()
-						fmt.Printf("exec: %s, out: %+v, err: %+v\n\n", script, out, err)
-					}(cmd.Cmd)
+						fmt.Printf("\033[33m[ %s ] exec: %s, out: %+v, err: %+v\033[m\n", t, script, out, err)
+					}(cmd.Cmd, time_string)
 				}
 
 				return nil

@@ -56,6 +56,9 @@ func (p *Process) Recieve(v url.Values) (err error) {
 		return
 	}
 
+	// TODO: 設計個比較優雅的方式傳出
+	fmt.Println("\033[32mregexp:", re.String(), "\033[m")
+
 	p.Commands[id] = &Command{
 		Id:      id,
 		Repeat:  repeat,
@@ -114,7 +117,7 @@ func parseDatetime(s string) (r *regexp.Regexp, e error) {
 		return
 	}
 
-	any := "[0-9]{1,2}"
+	any := "[0-9]{2}"
 	for n := 0; n <= 5; n++ {
 
 		sub := strings.Split(arr[n], ",")
@@ -139,7 +142,6 @@ func parseDatetime(s string) (r *regexp.Regexp, e error) {
 
 	// use RFC3339
 	re := fmt.Sprintf("[0-9]{4}-%s-%sT%s:%s:%s\\+%s:%s", m, d, h, i, s, any, any)
-	fmt.Println("正規式:", re)
 
 	r, e = regexp.Compile(re)
 
