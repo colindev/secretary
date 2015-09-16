@@ -10,6 +10,7 @@ func main() {
 
 	addr := flag.String("addr", "", "api listen")
 	interval := flag.Int64("interval", 10, "interval (seconds)")
+	f_backup := flag.String("backup", "/tmp/schedule.backup", "排程備份位置")
 
 	flag.Parse()
 
@@ -27,5 +28,8 @@ func main() {
 			os.Exit(1)
 		}
 	}
+
+	worker.Stop()
+	process.Backup(*f_backup)
 
 }

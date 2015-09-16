@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -13,12 +14,14 @@ import (
 type Command struct {
 	Id      string
 	Repeat  int
-	Raw     string
+	Cmd     string
 	Try     func(string) bool
 	Running bool
+	Raw     string
 }
 
 type Process struct {
+	// TODO: 壞味道,Worker 必須自己迭代 Commands
 	Commands map[string]*Command
 }
 
@@ -37,7 +40,8 @@ func (p *Process) Recieve(v url.Values) (err error) {
 	cmd = v.Get("command")
 	// TODO: 檢查命令
 
-	re, err = parseDatetime(v.Get("datetime"))
+	dt := v.Get("datetime")
+	re, err = parseDatetime(dt)
 
 	if err != nil {
 		return
@@ -45,7 +49,7 @@ func (p *Process) Recieve(v url.Values) (err error) {
 
 	hash := sha1.New()
 	hash.Write([]byte(cmd))
-	id := fmt.Sprintf("%x", hash.Sum(nil))
+	id := fmt.Sprintf("%x-%s", hash.Sum(nil), cmd)
 
 	if _, double := p.Commands[id]; double {
 		err = errors.New("重複命令")
@@ -55,10 +59,42 @@ func (p *Process) Recieve(v url.Values) (err error) {
 	p.Commands[id] = &Command{
 		Id:      id,
 		Repeat:  repeat,
-		Raw:     cmd,
+		Cmd:     cmd,
 		Try:     func(now string) bool { m := re.FindString(now); return len(m) > 0 },
 		Running: false,
+		Raw:     id + "|" + dt + "|" + strconv.Itoa(repeat) + "|" + cmd,
 	}
+
+	return
+}
+
+func (p *Process) Revoke(id string) {
+	delete(p.Commands, id)
+}
+
+func (p *Process) Each(f func(*Command, string) error) {
+	for id, c := range p.Commands {
+		if err := f(c, id); err != nil {
+			break
+		}
+	}
+}
+
+func (p *Process) Backup(file string) (err error) {
+	f, err := os.Create(file)
+	defer f.Close()
+	// TODO: 開檔失敗無法備份
+	if err != nil {
+		return
+	}
+
+	p.Each(func(c *Command, id string) (err error) {
+		_, err = f.WriteString(c.Raw + "\n")
+
+		return
+	})
+
+	f.Sync()
 
 	return
 }
@@ -102,7 +138,7 @@ func parseDatetime(s string) (r *regexp.Regexp, e error) {
 	m, d, h, i, s := arr[4], arr[3], arr[2], arr[1], arr[0]
 
 	// use RFC3339
-	re := fmt.Sprintf("[0-9]{4}-%s-%sT%s:%s:%s+00:00", m, d, h, i, s)
+	re := fmt.Sprintf("[0-9]{4}-%s-%sT%s:%s:%s\\+%s:%s", m, d, h, i, s, any, any)
 	fmt.Println("正規式:", re)
 
 	r, e = regexp.Compile(re)
