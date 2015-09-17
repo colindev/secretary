@@ -1,14 +1,15 @@
 package main
 
 import (
+	"bufio"
 	"crypto/sha1"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Command struct {
@@ -21,37 +22,24 @@ type Command struct {
 }
 
 type Process struct {
-	// TODO: 壞味道,Worker 必須自己迭代 Commands
-	Commands map[string]*Command
+	Schedules map[string]*Command
 }
 
-func (p *Process) Recieve(v url.Values) (err error) {
+func (p *Process) Recieve(repeat int, command string, time_set string) (err error) {
 
-	var repeat int
-	var cmd string
-	var re *regexp.Regexp
+	// TODO: 評估檢查 command 命令字串 或是 執行失敗移除
 
-	repeat, err = strconv.Atoi(v.Get("repeat"))
-
-	if err != nil {
-		return
-	}
-
-	cmd = v.Get("command")
-	// TODO: 檢查命令
-
-	dt := v.Get("datetime")
-	re, err = parseDatetime(dt)
+	re, err := parseDatetime(time_set)
 
 	if err != nil {
 		return
 	}
 
 	hash := sha1.New()
-	hash.Write([]byte(cmd))
-	id := fmt.Sprintf("%x-%s", hash.Sum(nil), cmd)
+	hash.Write([]byte(command))
+	id := fmt.Sprintf("%x", hash.Sum(nil))
 
-	if _, double := p.Commands[id]; double {
+	if _, double := p.Schedules[id]; double {
 		err = errors.New("重複命令")
 		return
 	}
@@ -59,35 +47,36 @@ func (p *Process) Recieve(v url.Values) (err error) {
 	// TODO: 設計個比較優雅的方式傳出
 	fmt.Println("\033[32mregexp:", re.String(), "\033[m")
 
-	p.Commands[id] = &Command{
+	p.Schedules[id] = &Command{
 		Id:      id,
 		Repeat:  repeat,
-		Cmd:     cmd,
+		Cmd:     command,
 		Try:     func(now string) bool { m := re.FindString(now); return len(m) > 0 },
 		Running: false,
-		Raw:     id + "|" + dt + "|" + strconv.Itoa(repeat) + "|" + cmd,
+		Raw:     time_set + "|" + strconv.Itoa(repeat) + "|" + command,
 	}
 
 	return
 }
 
 func (p *Process) Revoke(id string) {
-	delete(p.Commands, id)
+	delete(p.Schedules, id)
 }
 
 func (p *Process) Each(f func(*Command, string) error) {
-	for id, c := range p.Commands {
+	for id, c := range p.Schedules {
 		if err := f(c, id); err != nil {
 			break
 		}
 	}
 }
 
-func (p *Process) Dump() string {
+func (p *Process) dump(f func(c *Command) string) string {
 	s := ""
 
 	p.Each(func(c *Command, id string) (err error) {
-		s = s + c.Raw + "\n"
+
+		s = s + f(c) + c.Raw + "\n"
 
 		return
 	})
@@ -95,24 +84,58 @@ func (p *Process) Dump() string {
 	return s
 }
 
-func (p *Process) Backup(file string) (err error) {
-	f, err := os.Create(file)
-	defer f.Close()
-	// TODO: 開檔失敗無法備份
-	if err != nil {
-		return
-	}
+func (p *Process) Backup(file string, i int) <-chan error {
 
-	_, err = f.WriteString(p.Dump())
+	ce := make(chan error)
 
-	f.Sync()
+	go func() {
+		ticker := time.NewTicker(time.Second * time.Duration(i))
+		ct := ticker.C
+		defer ticker.Stop()
 
-	return
+		for _ = range ct {
+			f, err := os.Create(file)
+			defer f.Close()
+			// TODO: 開檔失敗無法備份
+			if err != nil {
+				return
+			}
+
+			_, err = f.WriteString(p.dump(func(c *Command) string { return "" }))
+
+			f.Sync()
+		}
+	}()
+	return ce
 }
 
-func NewProcess() (p *Process) {
+func NewProcess(conf string) (p *Process) {
 	p = &Process{}
-	p.Commands = make(map[string]*Command)
+	p.Schedules = make(map[string]*Command)
+
+	if f, err := os.Open(conf); err == nil {
+		scanner := bufio.NewScanner(f)
+		for scanner.Scan() {
+			text := scanner.Text()
+			if "" == text {
+				continue
+			}
+
+			arr := strings.Split(text, "|")
+
+			if len(arr) != 3 {
+				continue
+			}
+
+			repeat, _ := strconv.Atoi(arr[1])
+			command := arr[2]
+			time_set := arr[0]
+			p.Recieve(repeat, command, time_set)
+
+			fmt.Println("schedule:", text)
+		}
+	}
+
 	return
 }
 

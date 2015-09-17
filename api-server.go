@@ -1,9 +1,9 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 )
 
 type Handle func(http.ResponseWriter, *http.Request, *Process)
@@ -14,6 +14,11 @@ type Router struct {
 }
 
 func (r *Router) On(method string, path string, handler Handle) {
+
+	if _, ok := r.routes[method]; !ok {
+		r.routes[method] = make(map[string]Handle)
+	}
+
 	r.routes[method][path] = handler
 }
 
@@ -92,16 +97,22 @@ func jsonReplySuccess(rw http.ResponseWriter) {
 
 func registerHandler(rw http.ResponseWriter, req *http.Request, p *Process) {
 
-	if "POST" != req.Method {
-		jsonReplyError(rw, errors.New("請使用post"))
-	}
-
 	if err := req.ParseForm(); err != nil {
 		jsonReplyError(rw, err)
 		return
 	}
 
-	if err := p.Recieve(req.PostForm); err != nil {
+	v := req.PostForm
+	repeat, err := strconv.Atoi(v.Get("repeat"))
+	command := v.Get("command")
+	time_set := v.Get("datetime")
+
+	if err != nil {
+		jsonReplyError(rw, err)
+		return
+	}
+
+	if err := p.Recieve(repeat, command, time_set); err != nil {
 		jsonReplyError(rw, err)
 		return
 	}
@@ -116,8 +127,9 @@ func revokeHandler(rw http.ResponseWriter, req *http.Request, p *Process) {
 	}
 
 	p.Revoke(req.Form.Get("id"))
+	fmt.Println("revoke", req.Form.Get("id"))
 }
 
 func dumpHandler(rw http.ResponseWriter, req *http.Request, p *Process) {
-	rw.Write([]byte(p.Dump()))
+	rw.Write([]byte(p.dump(func(c *Command) string { return c.Id + "|" })))
 }
