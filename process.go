@@ -13,12 +13,19 @@ import (
 )
 
 type Command struct {
-	Id      string
-	Repeat  int
-	Cmd     string
-	Try     func(string) bool
-	Running bool
-	Raw     string
+	Id          string
+	Repeat      int
+	Cmd         string
+	TimeSetting string
+	Try         func(string) bool
+	Running     bool
+}
+
+func (c *Command) Raw() string {
+
+	i := strconv.Itoa(c.Repeat)
+
+	return c.TimeSetting + "|" + i + "|" + c.Cmd
 }
 
 type Process struct {
@@ -48,12 +55,12 @@ func (p *Process) Recieve(repeat int, command string, time_set string) (err erro
 	fmt.Println("\033[32mregexp:", re.String(), "\033[m")
 
 	p.Schedules[id] = &Command{
-		Id:      id,
-		Repeat:  repeat,
-		Cmd:     command,
-		Try:     func(now string) bool { m := re.FindString(now); return len(m) > 0 },
-		Running: false,
-		Raw:     time_set + "|" + strconv.Itoa(repeat) + "|" + command,
+		Id:          id,
+		Repeat:      repeat,
+		Cmd:         command,
+		TimeSetting: time_set,
+		Try:         func(now string) bool { m := re.FindString(now); return len(m) > 0 },
+		Running:     false,
 	}
 
 	return
@@ -76,7 +83,7 @@ func (p *Process) dump(f func(c *Command) string) string {
 
 	p.Each(func(c *Command, id string) (err error) {
 
-		s = s + f(c) + c.Raw + "\n"
+		s = s + f(c) + c.Raw() + "\n"
 
 		return
 	})
