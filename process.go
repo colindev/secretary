@@ -141,15 +141,15 @@ func NewProcess(conf string) (p *Process) {
 
 func parseDatetime(s string) (r *regexp.Regexp, e error) {
 
-	// 秒 分 時 日 月 星期
+	// 秒 分 時 日 月
 	arr := strings.Split(s, " ")
-	if 6 != len(arr) {
-		e = errors.New("格式為: 秒 分 時 日 月 星期")
+	if 5 != len(arr) {
+		e = errors.New("格式為: 秒 分 時 日 月")
 		return
 	}
 
 	any := "[0-9]{2}"
-	for n := 0; n <= 5; n++ {
+	for n := 0; n < len(arr); n++ {
 
 		sub := strings.Split(arr[n], ",")
 

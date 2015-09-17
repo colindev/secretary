@@ -6,8 +6,8 @@ import (
 
 func main() {
 
-	addr := flag.String("addr", "", "api listen")
-	interval := flag.Int64("interval", 10, "interval (seconds)")
+	addr := flag.String("addr", "", "開發測試用")
+	interval := flag.Int64("interval", 10, "排程掃描間隔")
 	f_conf := flag.String("schedule", "", "排程設定檔")
 	f_backup := flag.String("backup", "/tmp/schedule.backup", "排程備份位置")
 
