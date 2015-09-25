@@ -1,10 +1,10 @@
-# schedule by go
+# Secretary by go
 
 ### Quick Start
 ```sh
 # synopsis
-# schedule -interval -schedule [FILE]
-$ ./schedule -interval 1 -schedule ~/my.schedule.init
+# secretary -interval -schedule [FILE]
+$ ./secretary -interval 1 -schedule ~/my.schedule.init
 ```
 
 ### 格式
