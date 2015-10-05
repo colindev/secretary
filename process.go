@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -17,7 +16,7 @@ type Command struct {
 	Repeat      int
 	Cmd         string
 	TimeSetting string
-	Try         func(string) bool
+	Try         func(*SpecSchedule) bool
 	Running     bool
 }
 
@@ -36,7 +35,7 @@ func (p *Process) Recieve(repeat int, command string, time_set string) (err erro
 
 	// TODO: 評估檢查 command 命令字串 或是 執行失敗移除
 
-	re, err := parseDatetime(time_set)
+	s, err := Parse(time_set)
 
 	if err != nil {
 		return
@@ -52,15 +51,22 @@ func (p *Process) Recieve(repeat int, command string, time_set string) (err erro
 	}
 
 	// TODO: 設計個比較優雅的方式傳出
-	fmt.Println("\033[32mregexp:", re.String(), "\033[m")
+	fmt.Printf("\033[32mregexp: %+v \033[m\n", s)
 
 	p.Schedules[id] = &Command{
 		Id:          id,
 		Repeat:      repeat,
 		Cmd:         command,
 		TimeSetting: time_set,
-		Try:         func(now string) bool { m := re.FindString(now); return len(m) > 0 },
-		Running:     false,
+		Try: func(now *SpecSchedule) bool {
+			return (now.Second&s.Second) > 0 &&
+				(now.Minute&s.Minute) > 0 &&
+				(now.Hour&s.Hour) > 0 &&
+				(now.Dom&s.Dom) > 0 &&
+				(now.Month&s.Month) > 0 &&
+				(now.Dow&s.Dow) > 0
+		},
+		Running: false,
 	}
 
 	return
@@ -142,46 +148,6 @@ func NewProcess(conf string) (p *Process) {
 			fmt.Println("schedule:", text)
 		}
 	}
-
-	return
-}
-
-func parseDatetime(s string) (r *regexp.Regexp, e error) {
-
-	// 秒 分 時 日 月
-	arr := strings.Split(s, " ")
-	if 5 != len(arr) {
-		e = errors.New("格式為: 秒 分 時 日 月")
-		return
-	}
-
-	any := "[0-9]{2}"
-	for n := 0; n < len(arr); n++ {
-
-		sub := strings.Split(arr[n], ",")
-
-		for m := 0; m < len(sub); m++ {
-			if "*" == sub[m] {
-				sub[m] = any
-				continue
-			}
-			num, err := strconv.Atoi(sub[m])
-			if err != nil {
-				e = errors.New("只能使用*或數字 如 1 或是 * 或是 1,6")
-				return
-			}
-			sub[m] = fmt.Sprintf("%02d", num)
-		}
-
-		arr[n] = "(?:" + strings.Join(sub, "|") + ")"
-	}
-
-	m, d, h, i, s := arr[4], arr[3], arr[2], arr[1], arr[0]
-
-	// use RFC3339
-	re := fmt.Sprintf("[0-9]{4}-%s-%sT%s:%s:%s\\+%s:%s", m, d, h, i, s, any, any)
-
-	r, e = regexp.Compile(re)
 
 	return
 }
