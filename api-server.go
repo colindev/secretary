@@ -112,7 +112,7 @@ func registerHandler(rw http.ResponseWriter, req *http.Request, p *Process) {
 		return
 	}
 
-	if err := p.Recieve(repeat, command, time_set); err != nil {
+	if err := p.Receive(repeat, command, time_set); err != nil {
 		jsonReplyError(rw, err)
 		return
 	}

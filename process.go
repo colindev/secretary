@@ -31,7 +31,7 @@ type Process struct {
 	Schedules map[string]*Command
 }
 
-func (p *Process) Recieve(repeat int, command string, time_set string) (err error) {
+func (p *Process) Receive(repeat int, command string, time_set string) (err error) {
 
 	// TODO: 評估檢查 command 命令字串 或是 執行失敗移除
 
@@ -143,7 +143,7 @@ func NewProcess(conf string) (p *Process) {
 			repeat, _ := strconv.Atoi(arr[1])
 			command := arr[2]
 			time_set := arr[0]
-			p.Recieve(repeat, command, time_set)
+			p.Receive(repeat, command, time_set)
 
 			fmt.Println("schedule:", text)
 		}
