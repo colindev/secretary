@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 	"time"
 )
 
@@ -30,7 +29,7 @@ func (w *Worker) Run(p *Process) {
 
 			// TODO: 壞味道,魔術數字
 			// 跳過僅允許同一時間只能跑一條的程序
-			// 換句話說 只有設定 -1 才有機會在同一直間跑兩條以上相同程序
+			// 換句話說 只有設定 -1 才有機會在同一時間跑兩條以上相同程序
 			if cmd.Running && cmd.Repeat != -1 {
 				return
 			}
@@ -47,11 +46,10 @@ func (w *Worker) Run(p *Process) {
 					}
 
 					cmd.Running = true
-					c := exec.Command("sh", "-c", cmd.Cmd)
-					out, err := c.Output()
+					out, err := cmd.Job()
 					cmd.Running = false
 
-					fmt.Printf("\033[33m[ %+v ] exec: %s, out: %+v, err: %+v\033[m\n", schedule, cmd.Cmd, out, err)
+					fmt.Printf("\033[33m[ %+v ] exec: %s, out: %s, err: %+v\033[m\n", schedule, cmd.Cmd, string(out), err)
 					fmt.Println(cmd.Raw())
 
 				}(cmd, s)

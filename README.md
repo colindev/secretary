@@ -29,3 +29,17 @@ $ ./secretary -interval 1 -schedule ~/my.schedule.init
 * == 0 不限次數
 * == -1 不限次數,但可重疊執行
 
+### web api
+
+- `POST` api/register
+
+    * repeat [int]
+    * command [string 'url']
+    * datetime [string '* * * * * *']
+
+- `DELETE` api/revoke
+
+    * id [string]
+
+- `GET` api/dump
+

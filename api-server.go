@@ -1,9 +1,11 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type Handle func(http.ResponseWriter, *http.Request, *Process)
@@ -112,12 +114,19 @@ func registerHandler(rw http.ResponseWriter, req *http.Request, p *Process) {
 		return
 	}
 
-	if err := p.Receive(repeat, command, time_set); err != nil {
+	if !strings.HasPrefix(command, "http://") && !strings.HasPrefix(command, "https://") {
+		jsonReplyError(rw, errors.New("僅接受 web hook"))
+		return
+	}
+
+	id, err := p.Receive(repeat, command, time_set)
+
+	if err != nil {
 		jsonReplyError(rw, err)
 		return
 	}
 
-	jsonReplySuccess(rw)
+	jsonReply(rw, id)
 }
 
 func revokeHandler(rw http.ResponseWriter, req *http.Request, p *Process) {

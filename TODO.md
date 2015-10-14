@@ -18,7 +18,9 @@
 
 ### 下階段重構
 
-* [ ] 開放api, 但僅允許 http hook 註冊
+* [x] 開放api, 但僅允許 http hook 註冊
+* [x] register 回傳 schedule id
+* [ ] http hook 能自訂 timeout 
 * [ ] 加入提示 api server 被開啟的訊息
 
 

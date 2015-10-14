@@ -5,7 +5,10 @@ import (
 	"crypto/sha1"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +18,7 @@ type Command struct {
 	Id          string
 	Repeat      int
 	Cmd         string
+	Job         func() ([]byte, error)
 	TimeSetting string
 	Try         func(*SpecSchedule) bool
 	Running     bool
@@ -31,10 +35,11 @@ type Process struct {
 	Schedules map[string]*Command
 }
 
-func (p *Process) Receive(repeat int, command string, time_set string) (err error) {
+func (p *Process) Receive(repeat int, command string, time_set string) (ret string, err error) {
 
 	// TODO: 評估檢查 command 命令字串 或是 執行失敗移除
 
+	ret = ""
 	s, err := Parse(time_set)
 
 	if err != nil {
@@ -53,10 +58,12 @@ func (p *Process) Receive(repeat int, command string, time_set string) (err erro
 	// TODO: 設計個比較優雅的方式傳出
 	fmt.Printf("\033[32mregexp: %+v \033[m\n", s)
 
+	ret = id
 	p.Schedules[id] = &Command{
 		Id:          id,
 		Repeat:      repeat,
 		Cmd:         command,
+		Job:         createJob(command),
 		TimeSetting: time_set,
 		Try: func(now *SpecSchedule) bool {
 			return (now.Second&s.Second) > 0 &&
@@ -156,4 +163,27 @@ func NewProcess(conf string) (p *Process) {
 	}
 
 	return
+}
+
+var client *http.Client = &http.Client{}
+
+func createJob(cmd string) func() ([]byte, error) {
+
+	if strings.HasPrefix(cmd, "http://") || strings.HasPrefix(cmd, "https://") {
+		return func() ([]byte, error) {
+			res, err := client.Get(cmd)
+			if err != nil {
+				return []byte(""), err
+			}
+			defer res.Body.Close()
+
+			return ioutil.ReadAll(res.Body)
+		}
+	}
+
+	return func() ([]byte, error) {
+		c := exec.Command("sh", "-c", cmd)
+		return c.Output()
+	}
+
 }
