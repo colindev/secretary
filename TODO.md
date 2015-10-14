@@ -11,9 +11,9 @@
     - [x] process.Recover(f string)
 * [x] 在不開 http 服務下,支援讀檔啟動
 * [ ] 指定備份間隔
-* [ ] 排程設定檔允許使用#當註解
+* [x] 排程設定檔允許使用#當註解
 * [x] 開放 schedule 格式可指定 "週"
-* [ ] 搬入 parse 與 spec test
+* [x] 搬入 parse 與 spec test
 
 ### 下階段重構
 * [ ] 開放api, 但僅允許 http hook 註冊

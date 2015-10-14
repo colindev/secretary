@@ -134,6 +134,12 @@ func NewProcess(conf string) (p *Process) {
 				continue
 			}
 
+			// 跳過 # 開頭的註解
+			if strings.HasPrefix(text, "#") {
+				continue
+			}
+
+			// 重新切割字串
 			arr := strings.Split(text, "|")
 
 			if len(arr) != 3 {
