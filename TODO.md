@@ -14,7 +14,7 @@
 * [x] 排程設定檔允許使用#當註解
 * [x] 開放 schedule 格式可指定 "週"
 * [x] 搬入 parse 與 spec test
-
+* [ ] 改用 docker 重新編譯成支援舊版 centos
 
 ### 下階段重構
 
