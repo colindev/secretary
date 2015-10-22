@@ -9,7 +9,7 @@ if [ -z "$bin" ] ; then
     exit 1
 fi
 
-go build -o $bin *.go
+# go build -o $bin *.go
 
 if [ ! -d "$release" ] ; then
     mkdir $release
