@@ -1,6 +1,20 @@
 # Secretary by go
 
+### Compile
+
+```sh
+make build
+```
+
+compile in docker
+
+```sh
+make docker-img
+GOROOT=$GOROOT PWD=$PWD make centos6
+```
+
 ### Quick Start
+
 ```sh
 # synopsis
 # secretary -interval -schedule [FILE]

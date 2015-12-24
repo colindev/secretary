@@ -1,21 +1,13 @@
 #!/bin/bash
 
 commit_msg=${1:-"update"}
-bin=${2:-$(pwd)}
-bin=${bin##*/}
 release=./release
-
-if [ -z "$bin" ] ; then
-    exit 1
-fi
-
-# go build -o $bin *.go
 
 if [ ! -d "$release" ] ; then
     mkdir $release
 fi
 
-for file in README.md TODO.md $bin ; do
+for file in README.md TODO.md; do
 
     cp $file $release 
 
@@ -23,7 +15,7 @@ for file in README.md TODO.md $bin ; do
 
 done
 
-if [ -d $release/.git ] ; then
+if [ -d "$release/.git" ] ; then
 
     cd $release
     
