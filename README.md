@@ -43,3 +43,7 @@ $ ./secretary -interval 1 -schedule ~/my.schedule.init
 
 - `GET` api/dump
 
+### 解析規則演算法取自 [robfig/cron]
+
+[robfig/cron]:https://github.com/robfig/cron
+
