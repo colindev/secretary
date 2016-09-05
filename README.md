@@ -45,17 +45,19 @@ $ ./secretary -interval 1 -schedule ~/my.schedule.init
 
 ### web api
 
-- `POST` api/register
+- `POST` {prefix}/register
 
     * repeat [int]
     * command [string 'url']
     * datetime [string '* * * * * *']
 
-- `DELETE` api/revoke
+- `DELETE` {prefix}/revoke
 
     * id [string]
 
-- `GET` api/dump
+- `GET` {prefix}/dump
+- `GET` {prefix}/running
+- `GET` {prefix}/system/info
 
 ### 解析規則演算法取自 [robfig/cron]
 
