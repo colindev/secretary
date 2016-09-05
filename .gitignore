@@ -1,3 +1,4 @@
-/tests/
 secretary
-/release/
+/bin/*
+/bin/.git
+!/bin/secretary
