@@ -1,28 +1,131 @@
 package main
 
 import (
+	"bufio"
 	"flag"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"strconv"
+	"strings"
+	"syscall"
+	"time"
+
+	"rde-tech.vir888.com/dev/secretary/secretary.git/parser"
+	"rde-tech.vir888.com/dev/secretary/secretary.git/process"
+	"rde-tech.vir888.com/dev/secretary/secretary.git/worker"
+)
+
+var (
+	// Version of build
+	Version string
+	// CompileDate of build
+	CompileDate string
+	// Env collect flag args
+	Env = struct {
+		AdminAPIAddr   string
+		AdminAPIPrefix string
+		Interval       int64
+		Schedule       string
+		Backup         string
+		BackupInterval int
+	}{}
+	prc *process.Process
 )
 
 func main() {
 
-	addr := flag.String("addr", "", "開發測試用")
-	interval := flag.Int64("interval", 10, "排程掃描間隔")
-	f_conf := flag.String("schedule", "", "排程設定檔")
-	f_backup := flag.String("backup", "/tmp/schedule.backup", "排程備份位置")
+	flag.StringVar(&Env.AdminAPIAddr, "api.addr", "", "開發測試用(預計廢除)")
+	flag.StringVar(&Env.AdminAPIPrefix, "api.prefix", "", "API 路徑前綴")
+	flag.Int64Var(&Env.Interval, "interval", 10, "排程掃描間隔")
+	flag.StringVar(&Env.Schedule, "schedule", "", "排程設定檔")
+	flag.StringVar(&Env.Backup, "backup", "/tmp/schedule.backup", "排程備份位置")
+	flag.IntVar(&Env.BackupInterval, "backup.interval", 300, "備份間隔秒數")
 
+	var showVersion = flag.Bool("v", false, "display current version")
 	flag.Parse()
 
-	worker := NewWork(*interval)
-	process := NewProcess(*f_conf)
+	if *showVersion {
+		fmt.Println(Version, CompileDate)
+		os.Exit(0)
+	}
 
+	log.Println("version:", Version, CompileDate)
+	log.Println("interval:", Env.Interval)
+	work := worker.New(Env.Interval)
+	prc = process.New(log.New(os.Stdout, "[process]", log.Lshortfile|log.LstdFlags))
+
+	log.Println("schedule:", Env.Schedule)
+	readSchedule(Env.Schedule, func(command, timeSet string, repeat int) {
+		if _, err := prc.Receive(command, timeSet, repeat); err != nil {
+			log.Printf("[process] ignored because Receive error: %v \n\t# %s|%s\n", err, timeSet, command)
+		}
+	})
 	// TODO: 評估要不要拿掉
-	if *addr != "" {
-		ListenAndServe(*addr, process)
+	if Env.AdminAPIAddr != "" {
+		http.Handle(Env.AdminAPIPrefix+"/", http.StripPrefix(Env.AdminAPIPrefix, CreateRESTHandler()))
+		go http.ListenAndServe(Env.AdminAPIAddr, nil)
+		log.Println("admin api:", Env.AdminAPIAddr, Env.AdminAPIPrefix)
 	}
 
 	// 背景備份
-	process.Backup(*f_backup, 60)
-	worker.Run(process)
+	log.Println("backup:", Env.Backup, time.Duration(Env.BackupInterval)*time.Second)
+	prc.Backup(Env.Backup, time.Duration(Env.BackupInterval)*time.Second)
+	go work.Run(func(now time.Time, schedule parser.SpecSchedule) {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("[worker run] recover %+v\n", r)
+			}
+		}()
+		prc.Exec(now, prc.Find(schedule))
+	})
 
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
+	signal := <-shutdown
+	log.Printf("[shutdown] by %s(%#v)\n", signal, signal)
+
+	work.Stop()
+	prc.Stop()
+	prc.Wait()
+}
+
+func readSchedule(conf string, fn func(command, timeSet string, repeat int)) error {
+	f, err := os.Open(conf)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	var line int
+	for scanner.Scan() {
+		text := scanner.Text()
+		if "" == text {
+			continue
+		}
+
+		// 跳過 # 開頭的註解
+		if strings.HasPrefix(text, "#") {
+			continue
+		}
+
+		// 重新切割字串
+		arr := strings.Split(text, "|")
+
+		if len(arr) != 3 {
+			log.Printf("line: %d schema error\n", line)
+			continue
+		}
+
+		repeat, _ := strconv.Atoi(arr[1])
+		command := arr[2]
+		timeSet := arr[0]
+		fn(command, timeSet, repeat)
+		line++
+	}
+
+	return nil
 }

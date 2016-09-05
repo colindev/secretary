@@ -1,5 +1,0 @@
-#!/bin/bash
-
-WORKDIR=${0%/*}
-cd $WORKDIR && make build
-

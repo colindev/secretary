@@ -1,144 +1,114 @@
 package main
 
 import (
-	"errors"
-	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"rde-tech.vir888.com/dev/secretary/secretary.git/process"
+
+	"github.com/ant0ine/go-json-rest/rest"
 )
 
-type Handle func(http.ResponseWriter, *http.Request, *Process)
+// CreateRESTHandler return Handler by rest
+func CreateRESTHandler() http.Handler {
 
-type Router struct {
-	process *Process
-	routes  map[string]map[string]Handle
-}
-
-func (r *Router) On(method string, path string, handler Handle) {
-
-	if _, ok := r.routes[method]; !ok {
-		r.routes[method] = make(map[string]Handle)
-	}
-
-	r.routes[method][path] = handler
-}
-
-func (r *Router) Get(path string, handler Handle) {
-	r.On("GET", path, handler)
-}
-
-func (r *Router) Post(path string, handler Handle) {
-	r.On("POST", path, handler)
-}
-
-func (r *Router) Put(path string, handler Handle) {
-	r.On("PUT", path, handler)
-}
-
-func (r *Router) Delete(path string, handler Handle) {
-	r.On("DELETE", path, handler)
-}
-
-func (r *Router) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-
-	handlers, ok := r.routes[req.Method]
-
-	if !ok {
-		http.NotFound(rw, req)
-		return
-	}
-
-	handler, ok := handlers[req.URL.Path]
-	if !ok {
-		http.NotFound(rw, req)
-		return
-	}
-
-	handler(rw, req, r.process)
-
-}
-
-func NewRouter(p *Process) *Router {
-	r := &Router{}
-	r.process = p
-	r.routes = make(map[string]map[string]Handle)
-
-	return r
-}
-
-func ListenAndServe(addr string, p *Process) <-chan error {
-
-	err := make(chan error)
-	router := NewRouter(p)
-	router.Post("/api/register", registerHandler)
-	router.Delete("/api/revoke", revokeHandler)
-	router.Get("/api/dump", dumpHandler)
-
-	go func() {
-		err <- http.ListenAndServe(addr, router)
-	}()
-
-	// Process, http fatal
-	return err
-}
-
-func jsonReply(rw http.ResponseWriter, msg string) {
-	h := rw.Header()
-	h.Add("Content-Type", "application/json")
-	rw.Write([]byte(msg))
-}
-
-func jsonReplyError(rw http.ResponseWriter, e error) {
-	jsonReply(rw, fmt.Sprintf("{\"error\":\"%s\"}", e.Error()))
-}
-
-func jsonReplySuccess(rw http.ResponseWriter) {
-	jsonReply(rw, "{\"ok\":true}")
-}
-
-func registerHandler(rw http.ResponseWriter, req *http.Request, p *Process) {
-
-	if err := req.ParseForm(); err != nil {
-		jsonReplyError(rw, err)
-		return
-	}
-
-	v := req.PostForm
-	repeat, err := strconv.Atoi(v.Get("repeat"))
-	command := v.Get("command")
-	time_set := v.Get("datetime")
+	app, err := rest.MakeRouter(
+		rest.Post("/register", registerHandler),
+		rest.Delete("/revoke", revokeHandler),
+		rest.Get("/dump", dumpHandler),
+		rest.Get("/running", runningCommands),
+	)
 
 	if err != nil {
-		jsonReplyError(rw, err)
+		log.Fatal(err)
+	}
+
+	server := rest.NewApi()
+	server.Use(
+		&rest.AccessLogApacheMiddleware{},
+		&rest.TimerMiddleware{},
+		&rest.RecorderMiddleware{},
+		&rest.PoweredByMiddleware{
+			XPoweredBy: "rde-tech",
+		},
+		&rest.RecoverMiddleware{
+			EnableResponseStackTrace: true,
+		},
+	)
+
+	server.SetApp(app)
+	return server.MakeHandler()
+}
+
+// Error for REST response
+type Error struct {
+	Msg  interface{} `json:"msg"`
+	Code int         `json:"code"`
+}
+
+// WriteSuccess simply for use rest.ResponseWriter with struct
+func WriteSuccess(w rest.ResponseWriter, ret interface{}) {
+	w.WriteJson(struct {
+		Success interface{} `json:"success"`
+	}{ret})
+}
+
+// WriteError simply for use restResponseWriter with Error struct
+func WriteError(w rest.ResponseWriter, err interface{}, code int) {
+	w.WriteHeader(code)
+	w.WriteJson(struct {
+		Error Error `json:"error"`
+	}{Error{Msg: err, Code: code}})
+}
+
+func registerHandler(w rest.ResponseWriter, r *rest.Request) {
+
+	if err := r.ParseForm(); err != nil {
+		WriteError(w, err, http.StatusBadRequest)
+		return
+	}
+
+	v := r.PostForm
+	repeat, err := strconv.Atoi(v.Get("repeat"))
+	command := v.Get("command")
+	timeSet := v.Get("datetime")
+
+	if err != nil {
+		WriteError(w, err, http.StatusBadRequest)
 		return
 	}
 
 	if !strings.HasPrefix(command, "http://") && !strings.HasPrefix(command, "https://") {
-		jsonReplyError(rw, errors.New("僅接受 web hook"))
+		WriteError(w, "僅接受 web hook", http.StatusBadRequest)
 		return
 	}
 
-	id, err := p.Receive(repeat, command, time_set)
-
+	id, err := prc.Receive(command, timeSet, repeat)
 	if err != nil {
-		jsonReplyError(rw, err)
+		WriteError(w, err, http.StatusBadRequest)
 		return
 	}
 
-	jsonReply(rw, id)
+	WriteSuccess(w, id)
 }
 
-func revokeHandler(rw http.ResponseWriter, req *http.Request, p *Process) {
-	if err := req.ParseForm(); err != nil {
-		jsonReplyError(rw, err)
-		return
-	}
-
-	p.Revoke(req.Form.Get("id"))
-	fmt.Println("revoke", req.Form.Get("id"))
+func revokeHandler(w rest.ResponseWriter, r *rest.Request) {
+	prc.Revoke(r.URL.Query().Get("id"))
+	WriteSuccess(w, "ok")
 }
 
-func dumpHandler(rw http.ResponseWriter, req *http.Request, p *Process) {
-	rw.Write([]byte(p.dump(func(c *Command) string { return c.Id + "|" })))
+func dumpHandler(w rest.ResponseWriter, r *rest.Request) {
+
+	var ret = map[string]string{}
+	prc.Each(func(c *process.Command) error {
+		ret[c.ID] = c.String()
+		return nil
+	})
+	WriteSuccess(w, ret)
+}
+
+func runningCommands(w rest.ResponseWriter, r *rest.Request) {
+	WriteSuccess(w, prc.Running())
 }

@@ -1,16 +1,8 @@
 GOROOT := $(GOROOT)
 GO := $(GOROOT)/bin/go
 PWD := $(PWD)
-
-docker-img:
-	docker build -t centos6-gcc .
+TAG := `git describe --tags | cut -d '-' -f 1 `.`git rev-parse --short HEAD`
+DATETIME := `TZ=$(TZ) date +%Y%m%d.%H%M%S`
 
 build:
-	if test -n "$(OS)" ; then \
-		$(GO) build -o ./release/secretary.$(OS); \
-	else \
-		$(GO) build -o ./release/secretary; \
-	fi
-
-centos6:
-	docker run --rm -v $(PWD):/go-src -v $(GOROOT):/go-root -e "GOROOT=/go-root" -e "OS=centos6" centos6-gcc /go-src/compile
+	$(GO) build -ldflags "-X main.Version=$(TAG) -X main.CompileDate=$(DATETIME)" -a -o ./secretary
