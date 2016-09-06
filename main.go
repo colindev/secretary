@@ -41,8 +41,8 @@ func main() {
 	flag.StringVar(&Env.AdminAPIPrefix, "api.prefix", "", "API 路徑前綴")
 	flag.Int64Var(&Env.Interval, "interval", 10, "排程掃描間隔")
 	flag.StringVar(&Env.Schedule, "schedule", "", "排程設定檔")
-	flag.StringVar(&Env.Backup, "backup", "/tmp/schedule.backup", "排程備份位置")
-	flag.IntVar(&Env.BackupInterval, "backup.interval", 300, "備份間隔秒數")
+	flag.StringVar(&Env.Backup, "backup", "/tmp/schedule.backup", "排程備份位置(僅在啟動API時才有用)")
+	flag.IntVar(&Env.BackupInterval, "backup.interval", 300, "備份間隔秒數(僅在啟動API時才有用)")
 
 	var showVersion = flag.Bool("v", false, "display current version")
 	flag.Parse()
@@ -54,25 +54,18 @@ func main() {
 
 	log.Println("version:", Version, CompileDate)
 	log.Println("interval:", Env.Interval)
-	work := worker.New(Env.Interval)
-	prc = process.New(log.New(os.Stdout, "[process]", log.Lshortfile|log.LstdFlags))
-
 	log.Println("schedule:", Env.Schedule)
+
+	// 建構並初始化排程
+	prc = process.New(log.New(os.Stdout, "[process]", log.Lshortfile|log.LstdFlags))
 	readSchedule(Env.Schedule, func(command, timeSet string, repeat int) {
 		if _, err := prc.Receive(command, timeSet, repeat); err != nil {
 			log.Printf("[process] ignored because Receive error: %v \n\t# %s|%s\n", err, timeSet, command)
 		}
 	})
-	// TODO: 評估要不要拿掉
-	if Env.AdminAPIAddr != "" {
-		http.Handle(Env.AdminAPIPrefix+"/", http.StripPrefix(Env.AdminAPIPrefix, CreateRESTHandler()))
-		go http.ListenAndServe(Env.AdminAPIAddr, nil)
-		log.Println("admin api:", Env.AdminAPIAddr, Env.AdminAPIPrefix)
-	}
 
-	// 背景備份
-	log.Println("backup:", Env.Backup, time.Duration(Env.BackupInterval)*time.Second)
-	prc.Backup(Env.Backup, time.Duration(Env.BackupInterval)*time.Second)
+	// 建構並啟動 work ticker
+	work := worker.New(Env.Interval)
 	go work.Run(func(now time.Time, schedule parser.SpecSchedule) {
 		defer func() {
 			if r := recover(); r != nil {
@@ -82,6 +75,18 @@ func main() {
 		prc.Exec(now, prc.Find(schedule))
 	})
 
+	// TODO: 評估要不要拿掉
+	if Env.AdminAPIAddr != "" {
+		http.Handle(Env.AdminAPIPrefix+"/", http.StripPrefix(Env.AdminAPIPrefix, CreateRESTHandler()))
+		go http.ListenAndServe(Env.AdminAPIAddr, nil)
+		log.Println("admin api:", Env.AdminAPIAddr, Env.AdminAPIPrefix)
+
+		// 背景備份, 僅在啟用遠端 API 時才需要啟動
+		log.Println("backup:", Env.Backup, time.Duration(Env.BackupInterval)*time.Second)
+		prc.Backup(Env.Backup, time.Duration(Env.BackupInterval)*time.Second)
+	}
+
+	// listen os signal
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
 	signal := <-shutdown
