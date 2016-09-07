@@ -3,10 +3,8 @@ package main
 import (
 	"log"
 	"net/http"
-	"runtime"
 	"strconv"
 	"strings"
-	"time"
 
 	"rde-tech.vir888.com/dev/secretary/secretary.git/process"
 
@@ -20,8 +18,8 @@ func CreateRESTHandler() http.Handler {
 		rest.Post("/register", registerHandler),
 		rest.Delete("/revoke", revokeHandler),
 		rest.Get("/dump", dumpHandler),
-		rest.Get("/running", runningCommands),
-		rest.Get("/system/info", systemInfo),
+		rest.Get("/running", runningCommandsHandler),
+		rest.Get("/system/info", systemInfoHandler),
 	)
 
 	if err != nil {
@@ -112,30 +110,10 @@ func dumpHandler(w rest.ResponseWriter, r *rest.Request) {
 	WriteSuccess(w, ret)
 }
 
-func runningCommands(w rest.ResponseWriter, r *rest.Request) {
+func runningCommandsHandler(w rest.ResponseWriter, r *rest.Request) {
 	WriteSuccess(w, prc.Running())
 }
 
-func systemInfo(w rest.ResponseWriter, r *rest.Request) {
-
-	m := new(runtime.MemStats)
-	runtime.ReadMemStats(m)
-
-	WriteSuccess(w, struct {
-		Go           string `json:"go"`
-		Version      string `json:"version"`
-		CompileDate  string `json:"compile-date"`
-		CPU          int    `json:"CUP"`
-		Goroutines   int    `json:"goroutines"`
-		MemAllocated uint64 `json:"memory-allocated"`
-		NextGC       string `json:"next-gc"`
-	}{
-		Go:           runtime.Version(),
-		Version:      Version,
-		CompileDate:  CompileDate,
-		CPU:          runtime.NumCPU(),
-		Goroutines:   runtime.NumGoroutine(),
-		MemAllocated: m.Alloc,
-		NextGC:       time.Duration(m.NextGC).String(),
-	})
+func systemInfoHandler(w rest.ResponseWriter, r *rest.Request) {
+	WriteSuccess(w, getSystemInfo())
 }

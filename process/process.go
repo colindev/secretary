@@ -181,7 +181,9 @@ func (p *Process) Running() []string {
 
 // Stop backup ticker
 func (p *Process) Stop() {
-	p.tk.Stop()
+	if p.tk != nil {
+		p.tk.Stop()
+	}
 }
 
 func (p *Process) dump(f func(c *Command) string) []string {

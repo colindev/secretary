@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -92,6 +93,8 @@ func main() {
 	signal := <-shutdown
 	log.Printf("[shutdown] by %s(%#v)\n", signal, signal)
 
+	log.Printf("system info: %+v\n", getSystemInfo())
+
 	work.Stop()
 	prc.Stop()
 	prc.Wait()
@@ -133,4 +136,30 @@ func readSchedule(conf string, fn func(command, timeSet string, repeat int)) err
 	}
 
 	return nil
+}
+
+type systemInfo struct {
+	Go           string `json:"go"`
+	Version      string `json:"version"`
+	CompileDate  string `json:"compile-date"`
+	CPU          int    `json:"CUP"`
+	Goroutines   int    `json:"goroutines"`
+	MemAllocated uint64 `json:"memory-allocated"`
+	NextGC       string `json:"next-gc"`
+}
+
+func getSystemInfo() systemInfo {
+
+	m := new(runtime.MemStats)
+	runtime.ReadMemStats(m)
+
+	return systemInfo{
+		Go:           runtime.Version(),
+		Version:      Version,
+		CompileDate:  CompileDate,
+		CPU:          runtime.NumCPU(),
+		Goroutines:   runtime.NumGoroutine(),
+		MemAllocated: m.Alloc,
+		NextGC:       time.Duration(m.NextGC).String(),
+	}
 }
