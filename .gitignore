@@ -1,4 +1,3 @@
-secretary
 custom/*
 !custom/.env.sample
 !custom/schedule.sample
