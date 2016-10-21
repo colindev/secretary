@@ -15,7 +15,7 @@ build: test
 	$(GO) build -ldflags "-X main.Version=$(TAG) -X main.CompileDate=$(DATETIME)" -a -o ./$(APP)
 
 deploy:
-	@read -r -p "deoloy dist: ex. user@127.0.0.1:/dir: " DIST; if [ -n "$$DIST" ] ; then scp -r ./$(APP) ./Makefile ./custom/{.env.sample,schedule.sample} ./util $$DIST; fi
+	@read -r -p "deoloy dist: ex. user@127.0.0.1:/dir: " DIST; if [ -n "$$DIST" ] ; then ssh $${DIST%%:*} "/bin/bash -c 'mkdir -p $${DIST##*:}'"; scp -r ./$(APP) ./Makefile ./custom/ ./util $$DIST; fi
 
 service:
 	mkdir -p ./custom/util/systemd
@@ -29,6 +29,7 @@ install-service:
 	cp custom/util/systemd/$(APP).service $(SERVICE_FILE)
 	systemctl daemon-reload
 	systemctl enable $(APP)
+	systemctl start $(APP)
 
 uninstall-service:
 	systemctl stop $(APP)

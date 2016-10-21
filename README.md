@@ -21,6 +21,16 @@ GOROOT=$GOROOT PWD=$PWD make centos6
 $ ./secretary -interval 1 -schedule ~/my.schedule.init
 ```
 
+### Install for systemd
+
+```sh
+
+make service
+sudo make install-service
+# uninstall
+# sudo make uninstall-service
+```
+
 ### 格式
 
 #### 設定檔
