@@ -1,4 +1,4 @@
 secretary
-/bin/*
-/bin/.git
-!/bin/secretary
+custom/*
+!custom/.env.sample
+!custom/schedule.sample

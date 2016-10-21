@@ -1,2 +1,0 @@
-*/5 * * * * *|0|echo hello world
-*/10 * * * * *|-1|echo multi `date`; sleep 30

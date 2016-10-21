@@ -39,7 +39,8 @@ func TestProcess_Running(t *testing.T) {
 
 	status := prc.Running()
 	if len(status) != 4 {
-		t.Error("running cmd MUST be 4, but: ", len(status))
+		t.Errorf("running cmd MUST be 4, but: %d", len(status))
+		t.Log(status)
 	}
 	t.Log(strings.Join(status, "\n\t"))
 	prc.Wait()
