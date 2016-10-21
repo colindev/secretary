@@ -24,6 +24,7 @@ $ ./secretary -interval 1 -schedule ~/my.schedule.init
 ### Install for systemd
 
 ```sh
+cp custom/.env.sample custom/.env
 make build
 make service
 sudo make install-service
