@@ -24,7 +24,7 @@ $ ./secretary -interval 1 -schedule ~/my.schedule.init
 ### Install for systemd
 
 ```sh
-
+make build
 make service
 sudo make install-service
 # uninstall
