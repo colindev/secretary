@@ -91,7 +91,7 @@ func init() {
 func main() {
 
 	// 建構並初始化排程
-	prc = process.New(log.New(os.Stdout, "[process]", log.Lshortfile|log.LstdFlags))
+	prc = process.New(log.New(os.Stderr, "[process] ", log.LstdFlags))
 	readSchedule(Env.Schedule, func(command, timeSet string, repeat int) {
 		if _, err := prc.Receive(command, timeSet, repeat); err != nil {
 			log.Printf("[process] ignored because Receive error: %v \n\t# %s|%s\n", err, timeSet, command)
